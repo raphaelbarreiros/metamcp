@@ -161,11 +161,15 @@ export const GetOAuthSessionResponseSchema = z.union([
 // `OAuthSessionsRepository.upsert` drops nullish values via the conditional
 // spread (omit = "do not touch"), so allowing `null` here would advertise a
 // "clear this column" contract the implementation does not honour.
+// `expected_state` is the CSRF-defence per-flow nonce written by the
+// frontend's `DbOAuthClientProvider.state()` and validated server-side at
+// `exchangeToken`; clearing is a dedicated repo method, NOT a null write.
 export const UpsertOAuthSessionRequestSchema = z.object({
   mcp_server_uuid: z.string().uuid(),
   client_information: OAuthClientInformationSchema.optional(),
   tokens: OAuthTokensSchema.optional(),
   code_verifier: z.string().optional(),
+  expected_state: z.string().optional(),
 });
 
 // Upsert OAuth Session Response
@@ -261,6 +265,7 @@ export const OAuthSessionCreateInputSchema = z.object({
   client_information: OAuthClientInformationSchema.optional(),
   tokens: UpstreamTokenResponseSchema.optional(),
   code_verifier: z.string().optional(),
+  expected_state: z.string().optional(),
 });
 
 export const OAuthSessionUpdateInputSchema = z.object({
@@ -268,6 +273,7 @@ export const OAuthSessionUpdateInputSchema = z.object({
   client_information: OAuthClientInformationSchema.optional(),
   tokens: UpstreamTokenResponseSchema.optional(),
   code_verifier: z.string().optional(),
+  expected_state: z.string().optional(),
 });
 
 // Export repository types
@@ -285,6 +291,10 @@ export const DatabaseOAuthSessionSchema = z.object({
   client_information: OAuthClientInformationSchema.nullable(),
   tokens: UpstreamTokenResponseSchema.nullable(),
   code_verifier: z.string().nullable(),
+  // Per-flow CSRF nonce. Nullable on the DB read side: rows from before
+  // this column was added, and rows where the exchange already cleared
+  // the value, both carry NULL. NEVER serialized to the frontend.
+  expected_state: z.string().nullable(),
   created_at: z.date(),
   updated_at: z.date(),
 });
