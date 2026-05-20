@@ -98,6 +98,9 @@ export class OAuthSessionsRepository {
         }),
         ...(input.tokens && { tokens: input.tokens }),
         ...(input.code_verifier && { code_verifier: input.code_verifier }),
+        ...(input.expected_state && {
+          expected_state: input.expected_state,
+        }),
       })
       .onConflictDoUpdate({
         target: oauthSessionsTable.mcp_server_uuid,
@@ -107,6 +110,13 @@ export class OAuthSessionsRepository {
           }),
           ...(input.tokens && { tokens: input.tokens }),
           ...(input.code_verifier && { code_verifier: input.code_verifier }),
+          // CSRF-defence nonce (#299). Must be in the SET clause too so a
+          // subsequent state() write on an existing row updates the value
+          // instead of leaving stale state behind. Clearing still goes
+          // through the dedicated `clearExpectedState` method.
+          ...(input.expected_state && {
+            expected_state: input.expected_state,
+          }),
           updated_at: sql`NOW()`,
         },
       })
